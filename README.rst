@@ -1,23 +1,24 @@
-Python daemon script to feed ISKRA ME162 data to Domoticz
-=========================================================
+**Daemon script to feed ISKRA ME162 data to Domoticz**
+===================================================
 
 This python script can run as a daemon and reads the usage data from an
 ISKRA ME162 (will most likely work for other digital meters that have
 an iec62056-21 interface too.
 
-Requirements
+**Requirements**
 ------------
 Python3 
 
-Usage:
+**Usage:**
 ------
-# iskra-me162
+*iskra-me162*
 
-Configuration
+**Configuration**
 -------------
 The package installs a configuration file in /etc/default/iskra-me162.
 This file looks like:
 
+*
 # Settings for the domoticz server
 
 domoticzserver="domoticz.home.fazant.net:8080"
@@ -45,8 +46,9 @@ state_file = "/var/run/me162-state"
 
 # interval for updating domoticz, recommend at least 60 seconds
 update_interval = 120
+*
 
-Description of the options in the configuration file
+**Description of the options in the configuration file**
 -----------------------------------------------------
 
 The settings for the domoticz server are pretty simple.
@@ -69,22 +71,19 @@ a tmpfs filesystem.
 The script is meant to be run  as a daemon. The update-interval determines
 the frequency of updating Domoticz.
 
-
-Known problems
+**Known problems**
 --------------
 The use_highspeed option, used to control the speed of the serial connection
 does not always work. As the amount of data to be transferred is fairly small
 I leave the serial speed at 300 baud (use_highspeed = False) so it always
 works!
 
-Feedback
+**Feedback**
 --------
 
 Please send patches or bug reports to <louis.lagendijk@gmail.com>
 
-
-
-Source
+**Source**
 ------
 
 You can get a local copy of the development repository with::
@@ -92,7 +91,8 @@ You can get a local copy of the development repository with::
     git clone git://github.com/llagendijk/iskra-me162.git
 
 
-License
+**License**
+-------
 
 Copyright (C) 2016 Louis Lagendijk <louis.lagendijk@gmail.com>
 Based on previous work by J. Jeurissen and J. van der Linde ((c) 2012/2013)
@@ -110,8 +110,3 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-..
-    vim: set filetype=rst:
-
-
