@@ -18,35 +18,35 @@ Python3
 The package installs a configuration file in /etc/default/iskra-me162.
 This file looks like:
 
-*
-# Settings for the domoticz server
+::
 
-domoticzserver="domoticz.home.fazant.net:8080"
-domoticzusername = "XXXXX"
-domoticzpassword = "XXXXXXXX"
-device_index = 54
+	# Settings for the domoticz server
 
-# port for ir-head
+	domoticzserver="domoticz.home.fazant.net:8080"
+	domoticzusername = "XXXXX"
+	domoticzpassword = "XXXXXXXX"
+	device_index = 54
 
-port = "/dev/ttyUSB0"
+	# port for ir-head
 
-# use high speed: switch to high speed reading, may not work
-# Set True or False
-use_highspeed = False
+	port = "/dev/ttyUSB0"
 
-# print debug information?
-# 0 = no debug information printed
-# 1 = normal debug information printed
-# 2 = detailed information printed
-print_debug = 0
+	# use high speed: switch to high speed reading, may not work
+	# Set True or False
+	use_highspeed = False
 
-# state file is often written, so on a raspberry pi make sure it
-# is on a memory back file system (tmpfs)
-state_file = "/var/run/me162-state"
+	# print debug information?
+	# 0 = no debug information printed
+	# 1 = normal debug information printed
+	# 2 = detailed information printed
+	print_debug = 0
 
-# interval for updating domoticz, recommend at least 60 seconds
-update_interval = 120
-*
+	# state file is often written, so on a raspberry pi make sure it
+	# is on a memory back file system (tmpfs)
+	state_file = "/var/run/me162-state"
+
+	# interval for updating domoticz, recommend at least 60 seconds
+	update_interval = 120
 
 **Description of the options in the configuration file**
 -----------------------------------------------------
