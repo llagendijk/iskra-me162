@@ -1,0 +1,284 @@
+#!/usr/bin/python3
+# Read digital (not smart) meter
+# Release 5.0
+# Author l. Lagendijk
+# based on work by J. Jeurissen and J. van der Linde
+# Copyright (c) 2012/2013 J. Jeurissen & J. van der Linde
+# modifications (c) 2016 L. Lagendijk
+# Phyton 3
+from __future__ import print_function
+import sys
+import serial
+import datetime
+import time
+import csv
+import locale
+import os
+import requests
+from requests.auth import HTTPBasicAuth
+import json
+import base64
+import pickle
+from pprint import pprint
+from parse import *
+from parse import compile
+
+version = "v5.1 Iskra ME 162 configurable"
+
+# Settings for the domoticz server read from the configuration file
+config_file = "/etc/default/iskra-me162.config"
+# port = "/dev/ttyUSB0
+# domoticzserver="127.0.0.1:8080"
+# domoticzusername = ""
+# domoticzpassword = ""
+# print_debug = False
+
+with open(config_file) as config:
+	exec(config.read())
+
+class MeterReadings:
+
+	def __init__(self, ir_lines):
+		self.time = time.time() 
+		self.serial = self.get_value("C.1.0", ir_lines)
+		self.total_usage = self.get_wh( "1.8.0", ir_lines)
+		self.usage1 = self.get_wh( "1.8.1", ir_lines)
+		self.usage2 = self.get_wh( "1.8.2", ir_lines)
+		self.total_return = self.get_wh( "2.8.1", ir_lines)
+		self.return1 = self.get_wh( "2.8.1", ir_lines)
+		self.return2 = self.get_wh( "2.8.2", ir_lines)
+		self.error = self.get_value( "F.F", ir_lines)
+
+	def get_value(self, id, line_array):
+		# for i in range(len(line_array)):
+		
+		parser = compile("{}({})")
+		for line in line_array:
+			if line != "!":
+				result = parser.parse(line)
+				dbg_print(2, "checking %s for %s" %(line, id))
+	
+				if result[0] == id:
+					value_str = result[1]
+					dbg_print (2, "%s = %s kwh" %(id, value_str))
+					return	value_str 
+
+	def get_wh(self, id, line_array):
+		value = self.get_value(id, line_array)
+		if value is None:
+			return None
+		kwh = value.replace('*kWh', '')
+		dbg_print (2, "%s = %s kwh" %(id, kwh))
+		wh = float(kwh) * 1000
+		return int(wh)
+    
+
+def dbg_print(level, *args):
+	if(print_debug >= level):
+		my_args = ' '.join(map(str, args))
+		print(my_args)
+
+
+#########################################
+# Meter reading routine 
+#########################################
+
+def read_meter():
+
+	#Set initial COM port config
+	ser = serial.Serial()
+	ser.baudrate = 300
+	ser.bytesize = serial.SEVENBITS
+	ser.parity = serial.PARITY_EVEN
+	ser.stopbits = serial.STOPBITS_ONE
+	ser.xonxoff = 0
+	ser.rtscts = 0
+	ser.timeout = 20
+
+	ser.port = port
+
+	dbg_print (1, "Open COM port %s at %s baud" % (port, ser.baudrate))
+
+	ser.open()
+
+	#Initialize connection
+
+	dbg_print (1, "Send initialization: /?<CR><LF>")
+	ir_command = '/?!\x0D\x0A'
+	ser.write(ir_command.encode('utf-8'))
+	ser.flush()
+
+	#Wait for initialization confirmation
+	# /[XXX] [Z] MCC [CR] [LF]   /KAM0MCC[CR][LF]
+	# 	XXX is manufacturer string
+	# 	Z is the high baudrate supported
+	#	MCC is the meter model + software version
+
+	ir_buffer = ''
+	while '/' not in ir_buffer:
+		ir_buffer = str(ser.readline(), "utf-8")
+		if '/?!\x0D\x0A' in ir_buffer:
+			ir_buffer = str(ser.readline(), "utf-8")
+
+	dbg_print (1, "Initialization done.")
+
+	if use_highspeed:
+		ir_speed = ir_buffer[4:5]
+	else:
+		ir_speed = 0
+
+	
+	if   ir_speed == '0': 
+		ir_baud = "300"
+	elif ir_speed == '1': 
+		ir_baud = "600"
+	elif ir_speed == '2': 
+		ir_baud = "1200"
+	elif ir_speed == '3': 
+		ir_baud = "2400"
+	elif ir_speed == '4': 
+		ir_baud = "4800"
+	elif ir_speed == '5': 
+		ir_baud = "9600"
+	elif ir_speed == '6': 
+		ir_baud = "19200"
+	else: 
+		# unknown speed, continue to use 300 baud
+		ir_baud  = "300"
+		ir_speed = '0'
+
+	dbg_print (1, "IR-baud = %s" % ir_baud)
+
+
+
+	# Acknowledge choosen speed: 
+	# [ACK]0[Z][Y] [CR] [LF]
+	#	Z is the baudrate, take the same value as ir_speed in the previous answer
+	#	Y can be 0 or 1. Value 0 sets the actual meterreading mode, Value 1 sets the programming mode
+	#
+
+	ir_command='\x06' + '0'+ ir_speed + '0\x0D\x0A'
+	ser.write(ir_command.encode('utf-8'))
+	ser.flush()
+	dbg_print(1, "Sent: <ACK>" + '0' + ir_speed + "0")
+
+	ser.baudrate = ir_baud
+
+	# Wait for data
+
+	ir_buffer = ''
+	ir_lines_index = 0
+	ir_lines = []
+
+	ETX = False
+	while not ETX:
+		ir_buffer = str(ser.readline(), "utf-8")
+		if '\x060' in ir_buffer:
+			ir_buffer = str(ser.readline(), "utf-8")
+		if ir_lines_index == 0:
+			ir_buffer = ir_buffer.lstrip('\x02')
+		ir_lines.extend(ir_buffer.strip().split('\r\n'))
+		ir_lines_index = ir_lines_index + 1
+		if '!' in ir_buffer:
+			ETX = True
+
+	dbg_print (1, "Datatransfer complete.")
+	dbg_print (1, "Number of received elements: %d" % len(ir_lines))
+	dbg_print (1, "Array of received elements: ")
+	if (print_debug > 0):
+		pprint (ir_lines)
+
+	# Close port and show status
+	ser.close()
+
+	power_timestamp=datetime.datetime.strftime(datetime.datetime.today(), "%Y-%m-%d %H:%M:%S" )
+	dbg_print (1, "Telegram ontvangen op: %s" % power_timestamp)
+
+	current_readings = MeterReadings(ir_lines)
+
+	return current_readings
+
+def dump_readings(instance):
+	
+	try:
+		state = open(state_file, "wb")
+		pickler = pickle.Pickler(state)
+		pickler.dump(instance)
+	except: 
+		# Nothing to do here
+		print("failed to dump readings to state file")	
+		return False
+	return True
+
+def get_readings():
+	try:
+		state = open(state_file, "rb")
+		unpickler = pickle.Unpickler(state)
+		readings = unpickler.load()
+	except:
+		# nothing to do here
+		readings = None
+		print("Failed to read previous readings from state file: is this the first time we are running?")
+
+	return readings
+
+def do_work():
+	current_readings = read_meter()
+
+	if current_readings is not None:
+		dbg_print(1, "Process new readings")
+		previous_readings = get_readings()
+
+		if previous_readings is not None:
+
+			# We need the previous reading to calulate actual consumption and production
+			# so if we do not yet have previous readings we skip the domoticz update
+
+			dbg_print(1, "Previous readings found,  update domoticz")
+
+			interval = current_readings.time - previous_readings.time
+			consumption = int((current_readings.total_usage - previous_readings.total_usage) / interval * 3600)
+			production = int((current_readings.total_return - current_readings.total_return) / interval * 3600)
+
+			domoticz_url = format("http://%s/json.htm?type=command&param=udevice&idx=%s&nvalue=0&svalue=%s;%s;%s;%s;%s;%s"
+				%(
+				domoticzserver, 
+				device_index, 
+				current_readings.usage1, 
+				current_readings.usage2, 
+				current_readings.return1, 
+				current_readings.return2, 
+				consumption, 
+				production	
+				))	
+			dbg_print(1, "URL = "  + domoticz_url)
+			try:
+				resp = requests.get(domoticz_url, auth=HTTPBasicAuth(domoticzusername, domoticzpassword))
+			except requests.HTTPError as e:
+				print("Domoticz HTTP error", e.reason)
+			except requests.ConnectionError:
+				print("Domoticz Request failed!")
+			else:
+				if resp.status_code == 200:
+					print("Domoticz update successfull!")
+				else:
+					print("domoticz update failed:", resp.status_code)
+			
+		else:
+			dbg_print("No previous readings found, cannot update domoticz")
+		if dump_readings(current_readings):
+			dbg_print(1, "dumped readings to state file")
+
+def main():
+	while 1:
+		start_time = time.time()	
+		do_work()
+		time_left = start_time + update_interval - time.time()
+		if time_left > 0:
+			dbg_print(1, "sleeping for %d seconds" % time_left)
+			time.sleep(time_left)
+
+if __name__ == '__main__':
+	main()
+
+

@@ -1,0 +1,12 @@
+[Unit]
+Description=ISKRA ME162 reader for Domoticz
+After=basic.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/iskra-me162
+Restart=on-abort
+StandardOutput=syslog
+StandardError=syslog
+[Install]
+WantedBy=multi-user.target
+
