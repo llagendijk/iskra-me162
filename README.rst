@@ -57,13 +57,13 @@ In the Setup->Devices tab look for the new device and note the Idx value
 allocated to the sensor. Edit the configuration file device_index to match 
 the new device index. 
 
-If your IR-head s connected to a different serial port, edit the port value.
+If your IR-head is connected to a different serial port, edit the port value.
 
 Print_debug will enable debug printouts from the script so you can see what
 happens.See the configuration file for a description of the possible values.
 
 The script needs to maintain some state of the latest values sent to domoticz.
-In order not to waer out the sd-card it is recommended to store the file on 
+In order not to wear out the sd-card it is recommended to store the file on 
 a tmpfs filesystem.
 
 The script is meant to be run  as a daemon. The update-interval determines
@@ -94,11 +94,9 @@ You can get a local copy of the development repository with::
 
 License
 
-ec3k-server, the server software:
-
 Copyright (C) 2016 Louis Lagendijk <louis.lagendijk@gmail.com>
+Based on previous work by J. Jeurissen and J. van der Linde ((c) 2012/2013)
 
-Protocol reverse engineering: http://forum.jeelabs.net/comment/4020
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
