@@ -22,6 +22,8 @@ import pickle
 from pprint import pprint
 from parse import *
 from parse import compile
+import _thread
+from threading import Timer
 
 version = "v5.1 Iskra ME 162 configurable"
 
@@ -74,7 +76,7 @@ class MeterReadings:
     
 
 def dbg_print(level, *args):
-	if(print_debug >= level):
+	if(print_debug >= int(level)):
 		my_args = ' '.join(map(str, args))
 		print(my_args)
 
@@ -83,7 +85,7 @@ def dbg_print(level, *args):
 # Meter reading routine 
 #########################################
 
-def read_meter():
+def do_read_meter():
 
 	#Set initial COM port config
 	ser = serial.Serial()
@@ -198,7 +200,7 @@ def read_meter():
 
 	return current_readings
 
-def dump_readings(instance):
+def dump_previous_readings(instance):
 	
 	try:
 		state = open(state_file, "wb")
@@ -210,7 +212,7 @@ def dump_readings(instance):
 		return False
 	return True
 
-def get_readings():
+def get_previous_readings():
 	try:
 		state = open(state_file, "rb")
 		unpickler = pickle.Unpickler(state)
@@ -222,12 +224,28 @@ def get_readings():
 
 	return readings
 
+def read_meter():
+	# limit excution time for the meter reading to 30 seconds.
+	# this will avoid hangings when a read fails
+
+	timeout_timer = Timer(30, _thread.interrupt_main)
+	
+	try:
+		timeout_timer.start()
+		result = do_read_meter()
+	except KeyboardInterrupt:
+		result = None
+		dbg_print(0, "Meter Reading failed at ", datetime.datetime.strftime(datetime.datetime.today(), "%Y-%m-%d %H:%M:%S"), "will continue")
+	finally:	
+		timeout_timer.cancel()
+	return result
+
 def do_work():
 	current_readings = read_meter()
 
 	if current_readings is not None:
 		dbg_print(1, "Process new readings")
-		previous_readings = get_readings()
+		previous_readings = get_previous_readings()
 
 		if previous_readings is not None:
 
@@ -251,7 +269,7 @@ def do_work():
 				consumption, 
 				production	
 				))	
-			dbg_print(1, "URL = "  + domoticz_url)
+			dbg_print(0, "URL = "  + domoticz_url)
 			try:
 				resp = requests.get(domoticz_url, auth=HTTPBasicAuth(domoticzusername, domoticzpassword))
 			except requests.HTTPError as e:
@@ -265,8 +283,8 @@ def do_work():
 					print("domoticz update failed:", resp.status_code)
 			
 		else:
-			dbg_print("No previous readings found, cannot update domoticz")
-		if dump_readings(current_readings):
+			dbg_print(1, "No previous readings found, cannot update domoticz")
+		if dump_previous_readings(current_readings):
 			dbg_print(1, "dumped readings to state file")
 
 def main():
@@ -277,6 +295,8 @@ def main():
 		if time_left > 0:
 			dbg_print(1, "sleeping for %d seconds" % time_left)
 			time.sleep(time_left)
+		else:
+			dbg_print(1, "Interval already expired, start next reading")
 
 if __name__ == '__main__':
 	main()
