@@ -76,7 +76,7 @@ The script is meant to be run  as a daemon. The update-interval determines
 the frequency of updating Domoticz. A value of at least 60 seconds shall be
 chosen. Recommended value: 120 (seconds)
 
-**Systemd integration
+**Systemd integration**
 A systemd service file is included in the package. Execute the following to enable
 the service:
 
