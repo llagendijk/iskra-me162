@@ -3,7 +3,10 @@
 
 This python script can run as a daemon and reads the usage data from an
 ISKRA ME162 (will most likely work for other digital meters that have
-an iec62056-21 interface too.
+an iec62056-21 interface.
+The script was developed using a IR-head from 
+http://wiki.volkszaehler.org/hardware/controllers/ir-schreib-lesekopf-usb-ausgang
+Other IR-heads should work too, but have not yet been tested.
 
 **Requirements**
 ------------
@@ -66,17 +69,31 @@ happens.See the configuration file for a description of the possible values.
 
 The script needs to maintain some state of the latest values sent to domoticz.
 In order not to wear out the sd-card it is recommended to store the file on 
-a tmpfs filesystem.
+a tmpfs filesystem. If the statefile is not found (e.g. after a reboot) it will
+be re-created.
 
 The script is meant to be run  as a daemon. The update-interval determines
-the frequency of updating Domoticz.
+the frequency of updating Domoticz. A value of at least 60 seconds shall be
+chosen. Recommended value: 120 (seconds)
+
+**Systemd integration
+A systemd service file is included in the package. Execute the following to enable
+the service:
+
+::
+	systemctl daemon-reload
+	systemctl enable iskra-me162.service
+	systemctl start iskra-me162.service
 
 **Known problems**
 --------------
 The use_highspeed option, used to control the speed of the serial connection
 does not always work. As the amount of data to be transferred is fairly small
-I leave the serial speed at 300 baud (use_highspeed = False) so it always
+I recommend leaving the serial speed at 300 baud (use_highspeed = False) so it always
 works!
+
+The values for current consumption and energy delivered are caculated from the
+total consumption/delivered counters. They result is not very accurate.
 
 **Feedback**
 --------
